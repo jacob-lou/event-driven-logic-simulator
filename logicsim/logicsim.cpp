@@ -1,28 +1,27 @@
 #include <iostream>
-#include <sstream>
-#include <string>
+#include <fstream>
 
 #include "circuit.h"
 
-using namespace std;
-
 int main(int argc, char* argv[])
 {
-	stringstream ss;
-  Circuit C;
-  if(argc != 1)
-  {
-    if(C.parse(argv[1]))
+    if(argc < 2)
     {
-    	  C.startUml(ss);
-        C.run(ss);
-        C.endUml(ss);
-        cout << ss.str() << endl;
+        std::cout << "Usage: " << argv[0] << " <circuit_file>" << std::endl;
+        return 1;
     }
-  }
-  else
-  {
-      cout << "Please provide a circuit file to simulate." << endl;
-      return 1;
-  }
+    
+    Circuit c;
+    
+    if(!c.parse(argv[1]))
+    {
+        std::cout << "Failed to parse circuit file: " << argv[1] << std::endl;
+        return 1;
+    }
+    
+    c.startUml(std::cout);
+    c.run(std::cout);
+    c.endUml(std::cout);
+    
+    return 0;
 }

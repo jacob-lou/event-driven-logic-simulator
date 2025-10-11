@@ -4,14 +4,13 @@
 #include <sstream>
 #include <fstream>
 
-//#include "../heap.h" //bring in your heap implementation
 #include "../heap.h"
 #include "wire.h"
 #include "gate.h"
 #include "circuit.h"
 #include "event.h"
 
-Circuit::Circuit() : m_current_time(0)
+Circuit::Circuit() : m_current_time(0), m_pq(2, EventLess())
 {
     
 }
@@ -26,29 +25,32 @@ Circuit::~Circuit()
     {
         delete i;
     }
+    while(!m_pq.empty()){
+        delete m_pq.top();
+        m_pq.pop();
+    }
 }
 
 void Circuit::test()
 {
     m_wires.push_back(new Wire(0, "input A"));
-	m_wires.push_back(new Wire(1, "input B"));
-	m_wires.push_back(new Wire(2, "output"));
-    
+    m_wires.push_back(new Wire(1, "input B"));
+    m_wires.push_back(new Wire(2, "output"));
+        
     Gate* g = new And2Gate(m_wires[0], m_wires[1], m_wires[2]);
-	m_gates.push_back(g);
+    m_gates.push_back(g);
+        
+    Event* e = new Event(0, m_wires[0], '0');
+    m_pq.push(e);
     
-	Event* e = new Event {0,m_wires[0],'0'};
-	m_pq.push(e);
-	
-	e = new Event {0,m_wires[1],'1'};
-	m_pq.push(e);
-	
-	e = new Event {4,m_wires[0],'1'};
-	m_pq.push(e);
+    e = new Event(0, m_wires[1], '1');
+    m_pq.push(e);
+    
+    e = new Event(4, m_wires[0], '1');
+    m_pq.push(e);
 
-  e = new Event {6,m_wires[1],'0'};
-	m_pq.push(e);
-	
+    e = new Event(6, m_wires[1], '0');
+    m_pq.push(e);
 }
 
 bool Circuit::parse(const char* fname)
@@ -109,7 +111,14 @@ bool Circuit::parse(const char* fname)
                     getline(ss, s_output, ',');
                     m_gates.push_back(new Or2Gate(m_wires[stoi(s_in1)], m_wires[stoi(s_in2)], m_wires[stoi(s_output)]));
                 }
-                //Add code here to support the NOT gate type
+                if(s_type == "NOT")
+                {
+                    std::string s_in1;
+                    getline(ss, s_in1, ',');
+                    std::string s_output;
+                    getline(ss, s_output, ',');
+                    m_gates.push_back(new NotGate(m_wires[stoi(s_in1)], m_wires[stoi(s_output)]));
+                }
             }
         }
         if(line == "INJECT")
@@ -127,9 +136,10 @@ bool Circuit::parse(const char* fname)
                 getline(ss, s_wire, ',');
                 std::string s_state;
                 getline(ss, s_state, ',');
-            	Event* e = new Event {static_cast<uint64_t>(stoi(s_time)),m_wires[stoi(s_wire)],s_state[0]};
-                //std::cout << s_time << "," << s_wire << "," << s_state << std::endl;
-            	m_pq.push(e);
+
+                char state = (s_state == "1" || s_state == "HIGH") ? '1' : '0';
+                Event* e = new Event(static_cast<uint64_t>(stoi(s_time)), m_wires[stoi(s_wire)], state);
+                m_pq.push(e);
             }
         }
     }
@@ -138,40 +148,33 @@ bool Circuit::parse(const char* fname)
 
 bool Circuit::advance(std::ostream& os)
 {
-	if(m_pq.size() == 0)
-	{
-		return false;
-	}
+    if(m_pq.empty())
+    {
+        return false;
+    }
     
     m_current_time = m_pq.top()->time;
     std::stringstream ss;
     ss << "@" << m_current_time << std::endl;
     bool updated = false;
     
-    while(m_pq.top()->time == m_current_time)
+    while(!m_pq.empty() && m_pq.top()->time == m_current_time)
     {
-        if(m_pq.size() >= 1)
+        std::string temp = m_pq.top()->wire->setState(m_pq.top()->state, m_current_time);
+        if(temp != "")
         {
-            std::string temp = m_pq.top()->wire->setState(m_pq.top()->state, m_current_time);
-            if(temp != "")
-            {
-                ss << temp << std::endl;
-                updated = true;
-            }
-            delete m_pq.top();
-            m_pq.pop();
-            if(m_pq.size() == 0) break;
+            ss << temp << std::endl;
+            updated = true;
         }
-        else
-        {
-            break;
-        }
-        
+        delete m_pq.top();
+        m_pq.pop();
     }
+    
     if(updated)
     {
         os << ss.str();
     }
+    
     for(auto g : m_gates)
     {
         Event* e = g->update(m_current_time);
@@ -180,38 +183,36 @@ bool Circuit::advance(std::ostream& os)
             m_pq.push(e);
         }
     }
-	return true;
+    return true;
 }
 
 void Circuit::run(std::ostream& os)
 {
-	
-	while(advance(os)){
+    while(advance(os)){
         
-	}
+    }
 }
 
 void Circuit::startUml(std::ostream& os)
 {
-	os << "@startuml" << std::endl;
+    os << "@startuml" << std::endl;
     for(auto w : m_wires)
     {
         if(w->getName().size() > 0)
-				{
-					os << "binary " << "\"" << w->getName() << "\"" << " as W" << w->getId() << std::endl;
-				}
-		}
+        {
+            os << "binary " << "\"" << w->getName() << "\"" << " as W" << w->getId() << std::endl;
+        }
+    }
     os << std::endl;
     os << "@0" << std::endl;
     for(auto w : m_wires)
     {
         if(w->getName().size() > 0)
-				{
-					os << "W" << w->getId() << " is {low,high} " << std::endl;
-				}
-		}
+        {
+            os << "W" << w->getId() << " is {low,high} " << std::endl;
+        }
+    }
     os << std::endl;
-    
 }
 
 void Circuit::endUml(std::ostream& os)

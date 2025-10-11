@@ -11,7 +11,6 @@ struct Node
 {
     int val;
     Node *next;
-
     Node(int v, Node* n) : val(v), next(n) {}
 };
 
@@ -44,7 +43,7 @@ struct Node
  *   Reference to a head pointer for the list of nodes with values
  *   greater than the pivot
  * @param[in] pivot
- *   Pivot value
+ *   Pivot value 
  *
  */
 void llpivot(Node *&head, Node *&smaller, Node *&larger, int pivot);
@@ -83,7 +82,19 @@ Node* llfilter(Node* head, Comp pred)
     //*********************************************
     // Provide your implementation below
     //*********************************************
+  if (head== nullptr){
+    return nullptr;
+  }
 
+  Node* filltered_rest = llfilter(head->next, pred);
+
+  if (pred(head->val)){
+    delete head;
+    return filltered_rest;
+  }else {
+    head->next = filltered_rest;
+    return head;
+  }
 
 }
 

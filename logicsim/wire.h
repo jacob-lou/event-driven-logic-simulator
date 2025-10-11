@@ -1,13 +1,14 @@
 #ifndef WIRE_H
 #define WIRE_H
 #include <string>
+#include <cstdint>
 
 class Wire 
 {
     public:
         Wire(int, std::string name="");
-        const char& getState() const;
-        std::string setState(char, uint64_t);
+        char getState() const;
+        std::string setState(char state, uint64_t);
         void wireInput(int id, Wire* in);
         std::string getName() const;
         int getId() const;
