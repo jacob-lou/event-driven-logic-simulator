@@ -41,3 +41,8 @@ You can render out.uml with PlantUML (optional).
 -	llrec.h / llrec.cpp — recursive linked list functions
 -	logicsim/ — circuit simulator implementation
 -	exclusive_or.txt — sample circuit description
+
+## Quick Demo
+```bash
+bash examples/run_demo.sh
+```
